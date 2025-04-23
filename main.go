@@ -18,7 +18,7 @@ var (
 			Name: "csp_reports_total",
 			Help: "Total number of CSP violation reports received",
 		},
-		[]string{"violated_directive", "host"},
+		[]string{"violated_directive", "host", "blocked_uri", "document_uri"},
 	)
 
 	cspReportsErrors = promauto.NewCounter(
@@ -27,9 +27,37 @@ var (
 			Help: "Total number of errors processing CSP reports",
 		},
 	)
+
+	// Гистограмма для отслеживания статус кодов
+	cspReportsStatusCodes = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "csp_reports_status_codes",
+			Help:    "Status codes distribution for CSP violation reports",
+			Buckets: []float64{200, 300, 400, 500},
+		},
+		[]string{"host"},
+	)
+
+	// Метрика для отслеживания источников нарушений
+	cspReportsReferrers = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "csp_reports_referrers_total",
+			Help: "Total number of CSP violations by referrer",
+		},
+		[]string{"host", "referrer"},
+	)
+
+	// Метрика для отслеживания заблокированных URI по директивам
+	cspReportsBlockedURIs = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "csp_reports_blocked_uris_total",
+			Help: "Total number of blocked URIs by directive",
+		},
+		[]string{"host", "violated_directive", "blocked_uri"},
+	)
 )
 
-// CSPReport struct represents the CSP violation report
+// CSPReport структура для парсинга CSP отчетов
 type CSPReport struct {
 	CSPReport struct {
 		DocumentURI        string `json:"document-uri"`
@@ -87,10 +115,24 @@ func (s *Server) handleCSPReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Увеличиваем метрику
+	// Обновляем все метрики
 	cspReportsTotal.WithLabelValues(
 		report.CSPReport.ViolatedDirective,
 		host,
+		report.CSPReport.BlockedURI,
+		report.CSPReport.DocumentURI,
+	).Inc()
+
+	cspReportsStatusCodes.WithLabelValues(host).Observe(float64(report.CSPReport.StatusCode))
+
+	if report.CSPReport.Referrer != "" {
+		cspReportsReferrers.WithLabelValues(host, report.CSPReport.Referrer).Inc()
+	}
+
+	cspReportsBlockedURIs.WithLabelValues(
+		host,
+		report.CSPReport.ViolatedDirective,
+		report.CSPReport.BlockedURI,
 	).Inc()
 
 	// Логируем отчет
@@ -107,20 +149,40 @@ func (s *Server) handleCSPReport(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func startMetricsServer(logger *logrus.Logger, metricsPort string) {
+	metricsServer := &http.Server{
+		Addr:    ":" + metricsPort,
+		Handler: promhttp.Handler(),
+	}
+
+	logger.WithFields(logrus.Fields{
+		"port": metricsPort,
+	}).Info("Starting metrics server")
+
+	if err := metricsServer.ListenAndServe(); err != nil {
+		logger.WithError(err).Fatal("Metrics server failed to start")
+	}
+}
+
 func main() {
 	// Инициализируем сервер
 	server := NewServer()
 
-	// Получаем порт из переменной окружения или используем порт по умолчанию
+	// Порт для основного сервера
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	// Включаем метрики только если установлена соответствующая переменная окружения
+	// Отдельный порт для метрик
+	metricsPort := os.Getenv("METRICS_PORT")
+	if metricsPort == "" {
+		metricsPort = "9090"
+	}
+
+	// Запускаем сервер метрик в отдельной горутине
 	if os.Getenv("ENABLE_METRICS") == "true" {
-		http.Handle("/metrics", promhttp.Handler())
-		server.logger.Info("Prometheus metrics enabled at /metrics")
+		go startMetricsServer(server.logger, metricsPort)
 	}
 
 	// Регистрируем обработчик для CSP отчетов
@@ -131,6 +193,6 @@ func main() {
 	}).Info("Starting CSP report collector")
 
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		server.logger.WithError(err).Fatal("Server failed to start")
+		server.logger.WithError(err).Fatal("Main server failed to start")
 	}
 }
