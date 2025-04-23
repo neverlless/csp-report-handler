@@ -28,7 +28,7 @@ var (
 		},
 	)
 
-	// Гистограмма для отслеживания статус кодов
+	// Histogram for status codes
 	cspReportsStatusCodes = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "csp_reports_status_codes",
@@ -38,7 +38,7 @@ var (
 		[]string{"host"},
 	)
 
-	// Метрика для отслеживания источников нарушений
+	// Metrics for referrers
 	cspReportsReferrers = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "csp_reports_referrers_total",
@@ -47,7 +47,7 @@ var (
 		[]string{"host", "referrer"},
 	)
 
-	// Метрика для отслеживания заблокированных URI по директивам
+	// Metrics for blocked URIs
 	cspReportsBlockedURIs = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "csp_reports_blocked_uris_total",
@@ -57,7 +57,7 @@ var (
 	)
 )
 
-// CSPReport структура для парсинга CSP отчетов
+// CSPReport structure for parsing CSP reports
 type CSPReport struct {
 	CSPReport struct {
 		DocumentURI        string `json:"document-uri"`
@@ -85,13 +85,13 @@ func NewServer() *Server {
 }
 
 func (s *Server) handleCSPReport(w http.ResponseWriter, r *http.Request) {
-	// Получаем информацию о хосте
+	// Get the host from the request
 	host := r.Header.Get("X-Forwarded-Host")
 	if host == "" {
 		host = r.Host
 	}
 
-	// Проверяем метод запроса
+	// Check if the request method is POST
 	if r.Method != http.MethodPost {
 		s.logger.WithFields(logrus.Fields{
 			"method": r.Method,
@@ -103,7 +103,7 @@ func (s *Server) handleCSPReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Декодируем JSON
+	// Decode the JSON body
 	var report CSPReport
 	if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
 		s.logger.WithFields(logrus.Fields{
@@ -115,7 +115,7 @@ func (s *Server) handleCSPReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Обновляем все метрики
+	// Update all metrics
 	cspReportsTotal.WithLabelValues(
 		report.CSPReport.ViolatedDirective,
 		host,
@@ -135,7 +135,7 @@ func (s *Server) handleCSPReport(w http.ResponseWriter, r *http.Request) {
 		report.CSPReport.BlockedURI,
 	).Inc()
 
-	// Логируем отчет
+	// Log the report
 	s.logger.WithFields(logrus.Fields{
 		"document_uri":       report.CSPReport.DocumentURI,
 		"blocked_uri":        report.CSPReport.BlockedURI,
@@ -165,27 +165,27 @@ func startMetricsServer(logger *logrus.Logger, metricsPort string) {
 }
 
 func main() {
-	// Инициализируем сервер
+	// Initialize the server
 	server := NewServer()
 
-	// Порт для основного сервера
+	// Port for the main server
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	// Отдельный порт для метрик
+	// Separate port for metrics
 	metricsPort := os.Getenv("METRICS_PORT")
 	if metricsPort == "" {
 		metricsPort = "9090"
 	}
 
-	// Запускаем сервер метрик в отдельной горутине
+	// Start the metrics server in a separate goroutine
 	if os.Getenv("ENABLE_METRICS") == "true" {
 		go startMetricsServer(server.logger, metricsPort)
 	}
 
-	// Регистрируем обработчик для CSP отчетов
+	// Register the handler for CSP reports
 	http.HandleFunc("/report", server.handleCSPReport)
 
 	server.logger.WithFields(logrus.Fields{
