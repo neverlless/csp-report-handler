@@ -48,13 +48,13 @@ go run main.go
 
 1. Configure your web application's CSP report-uri to point to the collector:
 
-```
+```bash
 Content-Security-Policy: ...; report-uri http://your-server:8080/report;
 ```
 
 1. Access Prometheus metrics at:
 
-```
+```bash
 http://your-server:9090/metrics
 ```
 
