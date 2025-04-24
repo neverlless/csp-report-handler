@@ -1,7 +1,9 @@
 global:
   scrape_interval: 15s
+  evaluation_interval: 15s
 
 scrape_configs:
   - job_name: 'csp_collector'
     static_configs:
-      - targets: ['localhost:8080']
+      - targets: ['app:9090']
+    metrics_path: '/metrics'
