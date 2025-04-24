@@ -18,8 +18,7 @@ A lightweight and efficient Content Security Policy (CSP) violation report colle
 
 ## Dashboard Preview
 
-<img width="1501" alt="Снимок экрана 2025-04-24 в 13 16 02" src="https://github.com/user-attachments/assets/a2b37112-a6a6-4f0a-b18f-9ef79994acf0" />
-
+![Dashboard Preview](https://github.com/user-attachments/assets/a2b37112-a6a6-4f0a-b18f-9ef79994acf0)
 
 ## Quick Start
 
