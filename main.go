@@ -18,7 +18,7 @@ var (
 			Name: "csp_reports_total",
 			Help: "Total number of CSP violation reports received",
 		},
-		[]string{"violated_directive", "host", "blocked_uri", "document_uri"},
+		[]string{"violated_directive", "document_uri", "blocked_uri"},
 	)
 
 	cspReportsErrors = promauto.NewCounter(
@@ -35,7 +35,7 @@ var (
 			Help:    "Status codes distribution for CSP violation reports",
 			Buckets: []float64{200, 300, 400, 500},
 		},
-		[]string{"host"},
+		[]string{"document_uri"},
 	)
 
 	// Metrics for referrers
@@ -44,7 +44,7 @@ var (
 			Name: "csp_reports_referrers_total",
 			Help: "Total number of CSP violations by referrer",
 		},
-		[]string{"host", "referrer"},
+		[]string{"document_uri", "referrer"},
 	)
 
 	// Metrics for blocked URIs
@@ -53,7 +53,7 @@ var (
 			Name: "csp_reports_blocked_uris_total",
 			Help: "Total number of blocked URIs by directive",
 		},
-		[]string{"host", "violated_directive", "blocked_uri"},
+		[]string{"document_uri", "violated_directive", "blocked_uri"},
 	)
 )
 
@@ -118,19 +118,18 @@ func (s *Server) handleCSPReport(w http.ResponseWriter, r *http.Request) {
 	// Update all metrics
 	cspReportsTotal.WithLabelValues(
 		report.CSPReport.ViolatedDirective,
-		host,
-		report.CSPReport.BlockedURI,
 		report.CSPReport.DocumentURI,
+		report.CSPReport.BlockedURI,
 	).Inc()
 
-	cspReportsStatusCodes.WithLabelValues(host).Observe(float64(report.CSPReport.StatusCode))
+	cspReportsStatusCodes.WithLabelValues(report.CSPReport.DocumentURI).Observe(float64(report.CSPReport.StatusCode))
 
 	if report.CSPReport.Referrer != "" {
-		cspReportsReferrers.WithLabelValues(host, report.CSPReport.Referrer).Inc()
+		cspReportsReferrers.WithLabelValues(report.CSPReport.DocumentURI, report.CSPReport.Referrer).Inc()
 	}
 
 	cspReportsBlockedURIs.WithLabelValues(
-		host,
+		report.CSPReport.DocumentURI,
 		report.CSPReport.ViolatedDirective,
 		report.CSPReport.BlockedURI,
 	).Inc()
