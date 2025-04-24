@@ -110,13 +110,13 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(csp_reports_total{host=~\"$host\"}[5m])) by (violated_directive, host)",
-          "legendFormat": "{{host}} - {{violated_directive}}",
+          "expr": "sum(rate(csp_reports_total{document_uri=~\"${app}.*\"}[5m])) by (violated_directive, document_uri)",
+          "legendFormat": "{{document_uri}} - {{violated_directive}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "CSP Violations by Directive and Host",
+      "title": "CSP Violations by Directive and Application",
       "type": "timeseries"
     },
     {
@@ -208,12 +208,12 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(csp_reports_blocked_uris_total{host=~\"$host\"}[5m])) by (host, blocked_uri)",
-          "legendFormat": "{{host}} - {{blocked_uri}}",
+          "expr": "sum(rate(csp_reports_blocked_uris_total{document_uri=~\"${app}.*\"}[5m])) by (document_uri, blocked_uri)",
+          "legendFormat": "{{document_uri}} - {{blocked_uri}}",
           "refId": "A"
         }
       ],
-      "title": "Blocked URIs by Host",
+      "title": "Blocked URIs by Application",
       "type": "timeseries"
     },
     {
@@ -283,12 +283,12 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(csp_reports_status_codes_sum{host=~\"$host\"}[5m])) by (host) / sum(rate(csp_reports_status_codes_count{host=~\"$host\"}[5m])) by (host)",
-          "legendFormat": "{{host}}",
+          "expr": "sum(rate(csp_reports_status_codes_sum{document_uri=~\"${app}.*\"}[5m])) by (document_uri) / sum(rate(csp_reports_status_codes_count{document_uri=~\"${app}.*\"}[5m])) by (document_uri)",
+          "legendFormat": "{{document_uri}}",
           "refId": "A"
         }
       ],
-      "title": "Average Status Code by Host",
+      "title": "Average Status Code by Application",
       "type": "gauge"
     },
     {
@@ -350,7 +350,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "topk(10, sum(csp_reports_referrers_total{host=~\"$host\"}) by (referrer))",
+          "expr": "topk(10, sum(csp_reports_referrers_total{document_uri=~\"${app}.*\"}) by (referrer))",
           "legendFormat": "{{referrer}}",
           "range": true,
           "refId": "A"
@@ -467,19 +467,19 @@
           "type": "prometheus",
           "uid": "P4169E866C3094E38"
         },
-        "definition": "label_values(csp_reports_total, host)",
+        "definition": "label_values(csp_reports_total, document_uri)",
         "hide": 0,
         "includeAll": true,
-        "label": "Host",
+        "label": "Application",
         "multi": true,
-        "name": "host",
+        "name": "app",
         "options": [],
         "query": {
-          "query": "label_values(csp_reports_total, host)",
+          "query": "label_values(csp_reports_total, document_uri)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
-        "regex": "",
+        "regex": "/https?:\\/\\/[^/?#]+/",
         "skipUrlSync": false,
         "sort": 1,
         "type": "query"

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -55,6 +56,15 @@ var (
 		},
 		[]string{"document_uri", "violated_directive", "blocked_uri"},
 	)
+
+	// Additional metrics for detailed URI information
+	cspReportsDetailedURI = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "csp_reports_detailed_uri_total",
+			Help: "Total number of CSP violations with full URI details",
+		},
+		[]string{"base_uri", "full_uri", "violated_directive"},
+	)
 )
 
 // CSPReport structure for parsing CSP reports
@@ -82,6 +92,17 @@ func NewServer() *Server {
 	return &Server{
 		logger: logger,
 	}
+}
+
+func normalizeDocumentURI(documentURI string) string {
+	u, err := url.Parse(documentURI)
+	if err != nil {
+		return documentURI
+	}
+	// Clear query parameters and fragment
+	u.RawQuery = ""
+	u.Fragment = ""
+	return u.String()
 }
 
 func (s *Server) handleCSPReport(w http.ResponseWriter, r *http.Request) {
@@ -115,21 +136,24 @@ func (s *Server) handleCSPReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Normalize the document URI
+	normalizedURI := normalizeDocumentURI(report.CSPReport.DocumentURI)
+
 	// Update all metrics
 	cspReportsTotal.WithLabelValues(
 		report.CSPReport.ViolatedDirective,
-		report.CSPReport.DocumentURI,
+		normalizedURI,
 		report.CSPReport.BlockedURI,
 	).Inc()
 
-	cspReportsStatusCodes.WithLabelValues(report.CSPReport.DocumentURI).Observe(float64(report.CSPReport.StatusCode))
+	cspReportsStatusCodes.WithLabelValues(normalizedURI).Observe(float64(report.CSPReport.StatusCode))
 
 	if report.CSPReport.Referrer != "" {
-		cspReportsReferrers.WithLabelValues(report.CSPReport.DocumentURI, report.CSPReport.Referrer).Inc()
+		cspReportsReferrers.WithLabelValues(normalizedURI, report.CSPReport.Referrer).Inc()
 	}
 
 	cspReportsBlockedURIs.WithLabelValues(
-		report.CSPReport.DocumentURI,
+		normalizedURI,
 		report.CSPReport.ViolatedDirective,
 		report.CSPReport.BlockedURI,
 	).Inc()
