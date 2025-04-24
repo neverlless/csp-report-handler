@@ -58,13 +58,13 @@ var (
 	)
 
 	// Additional metrics for detailed URI information
-	cspReportsDetailedURI = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "csp_reports_detailed_uri_total",
-			Help: "Total number of CSP violations with full URI details",
-		},
-		[]string{"base_uri", "full_uri", "violated_directive"},
-	)
+	// cspReportsDetailedURI = promauto.NewCounterVec(
+	// 	prometheus.CounterOpts{
+	// 		Name: "csp_reports_detailed_uri_total",
+	// 		Help: "Total number of CSP violations with full URI details",
+	// 	},
+	// 	[]string{"base_uri", "full_uri", "violated_directive"},
+	// )
 )
 
 // CSPReport structure for parsing CSP reports
