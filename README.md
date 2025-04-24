@@ -16,13 +16,73 @@ A lightweight and efficient Content Security Policy (CSP) violation report colle
   - Top referrers
   - Error counts
 
-## Prerequisites
+## Dashboard Preview
+
+![CSP Violations Dashboard](docs/images/dashboard-preview.png)
+
+## Quick Start
+
+Launch the demo environment with Docker Compose:
+
+```bash
+docker-compose up -d
+```
+
+After startup, the following services will be available:
+
+- CSP Report Handler: <http://localhost:8080/report>
+- Prometheus: <http://localhost:9091>
+- Grafana: [http://localhost:3000](http://localhost:3000)
+
+Grafana credentials:
+
+- Username: admin
+- Password: admin
+
+### Testing the Setup
+
+Send a test CSP report:
+
+```bash
+curl -X POST http://localhost:8080/report \
+  -H "Content-Type: application/csp-report" \
+  -d '{
+    "csp-report": {
+      "document-uri": "https://example.com",
+      "referrer": "https://example.com",
+      "violated-directive": "script-src",
+      "effective-directive": "script-src",
+      "original-policy": "script-src '\''self'\''",
+      "blocked-uri": "https://evil.com/script.js"
+    }
+  }'
+```
+
+Open Grafana (<http://localhost:3000>) and navigate to the pre-configured "CSP Violations Dashboard"
+
+### Stopping the Environment
+
+Stop all services:
+
+```bash
+docker-compose down
+```
+
+Remove all data including volumes:
+
+```bash
+docker-compose down -v
+```
+
+## Manual Installation
+
+### Prerequisites
 
 - Go 1.24.2 or higher
 - Prometheus
 - Grafana (optional, for visualization)
 
-## Installation
+### Installation
 
 ```bash
 git clone github.com/neverlless/csp-report-handler
@@ -30,7 +90,7 @@ cd csp-report-handler
 go mod download
 ```
 
-## Configuration
+### Configuration
 
 The application can be configured using environment variables:
 
@@ -38,7 +98,7 @@ The application can be configured using environment variables:
 - `METRICS_PORT` - Prometheus metrics port (default: 9090)
 - `ENABLE_METRICS` - Enable/disable metrics endpoint (default: false)
 
-## Usage
+### Usage
 
 1. Start the server:
 
@@ -46,36 +106,27 @@ The application can be configured using environment variables:
 go run main.go
 ```
 
-1. Configure your web application's CSP report-uri to point to the collector:
+1. Configure your web application's CSP report-uri:
 
 ```bash
 Content-Security-Policy: ...; report-uri http://your-server:8080/report;
 ```
 
-1. Access Prometheus metrics at:
+1. Access Prometheus metrics:
 
 ```bash
 http://your-server:9090/metrics
 ```
 
-## Metrics
+## Available Metrics
 
-The following Prometheus metrics are available:
+The following Prometheus metrics are exposed:
 
 - `csp_reports_total` - Total number of CSP violation reports
 - `csp_reports_errors_total` - Total number of processing errors
 - `csp_reports_status_codes` - Status codes distribution
 - `csp_reports_referrers_total` - Violations by referrer
 - `csp_reports_blocked_uris_total` - Blocked URIs by directive
-
-## Grafana Dashboard
-
-Import the provided `grafana-dashboard.json` to visualize:
-
-- CSP Violations by Directive and Host
-- Blocked URIs by Host
-- Status Codes Distribution
-- Top Referrers
 
 ## Docker Support
 
